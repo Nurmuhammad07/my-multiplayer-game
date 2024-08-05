@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const socket = io('/api');
+    const socket = io(); // Initialize Socket.IO client
     const existingRoomNames = [];
 
     // Hide or show the room form and chat
