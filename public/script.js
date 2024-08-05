@@ -2,211 +2,225 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = io(); // Initialize Socket.IO client
     const existingRoomNames = [];
 
-    // Hide or show the room form and chat
+    function displayMessage(username, content, isPhoto = false) {
+        const messages = document.getElementById('messages');
+        const currentUser = document.getElementById('usernameInput').value.trim();
+        if (messages) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            if (username === currentUser) {
+                messageElement.classList.add('message-right');
+            } else {
+                messageElement.classList.add('message-left');
+            }
+
+            if (isPhoto) {
+                messageElement.innerHTML = `<strong>${username}:</strong> <img src="${content}" style="max-width: 100px;">`;
+            } else {
+                messageElement.innerHTML = `<strong>${username}:</strong> ${content}`;
+            }
+
+            messages.appendChild(messageElement);
+            messages.scrollTop = messages.scrollHeight; // Auto-scroll to the bottom
+        } else {
+            console.error('Messages element not found.');
+        }
+    }
+
     function toggleRoomForm(show) {
         document.getElementById('roomForm').style.display = show ? 'block' : 'none';
         document.getElementById('roomInfo').style.display = show ? 'none' : 'block';
     }
 
-    // Show the room name prompt with suggested incremented room name
+    function suggestNewRoomName(existingRoomName) {
+        let baseName = existingRoomName;
+        let match = baseName.match(/(.*)_(\d+)$/);
+        let newName;
+
+        if (match) {
+            baseName = match[1];
+            let number = parseInt(match[2], 10) + 1;
+            newName = `${baseName}_${number}`;
+        } else {
+            newName = `${baseName}_1`;
+        }
+
+        while (existingRoomNames.includes(newName)) {
+            let match = newName.match(/(.*)_(\d+)$/);
+            if (match) {
+                baseName = match[1];
+                let number = parseInt(match[2], 10) + 1;
+                newName = `${baseName}_${number}`;
+            } else {
+                newName = `${baseName}_1`;
+            }
+        }
+
+        return newName;
+    }
+
     function showRoomNamePrompt(existingRoomName) {
         const roomNamePrompt = document.getElementById('roomNamePrompt');
         const newRoomNameInput = document.getElementById('newRoomNameInput');
-        if (!roomNamePrompt || !newRoomNameInput) {
-            console.error('Room name prompt or input field not found.');
-            return;
-        }
+        if (roomNamePrompt && newRoomNameInput) {
+            const suggestedName = suggestNewRoomName(existingRoomName);
+            newRoomNameInput.value = suggestedName; // Set default new name
+            roomNamePrompt.style.display = 'block';
 
-        let baseName = existingRoomName;
-        let number = 1;
+            const confirmButton = document.getElementById('confirmRoomName');
+            const cancelButton = document.getElementById('cancelRoomName');
 
-        // Generate a new name with an incrementing number if needed
-        while (existingRoomNames.includes(`${baseName}_${number}`)) {
-            number++;
-        }
-        newRoomNameInput.value = `${baseName}_${number}`; // Set default new name
-        roomNamePrompt.style.display = 'block';
+            if (confirmButton && cancelButton) {
+                confirmButton.onclick = () => {
+                    const newRoomName = newRoomNameInput.value.trim();
+                    if (newRoomName) {
+                        socket.emit('createRoom', { username: document.getElementById('usernameInput').value.trim(), roomName: newRoomName });
+                        roomNamePrompt.style.display = 'none';
+                    }
+                };
 
-        const confirmButton = document.getElementById('confirmRoomName');
-        const cancelButton = document.getElementById('cancelRoomName');
-
-        if (confirmButton && cancelButton) {
-            confirmButton.onclick = () => {
-                const newRoomName = newRoomNameInput.value.trim();
-                if (newRoomName) {
-                    socket.emit('createRoom', { username: document.getElementById('usernameInput').value.trim(), roomName: newRoomName });
+                cancelButton.onclick = () => {
                     roomNamePrompt.style.display = 'none';
-                } else {
-                    console.error('New room name is empty.');
-                }
-            };
-
-            cancelButton.onclick = () => {
-                roomNamePrompt.style.display = 'none';
-            };
-        } else {
-            console.error('Confirm or Cancel button not found.');
+                };
+            }
         }
     }
 
-    // Create a new room
-    document.getElementById('createRoomButton').onclick = () => {
-        const usernameInput = document.getElementById('usernameInput');
-        const roomNameInput = document.getElementById('roomNameInput');
-
-        if (!usernameInput || !roomNameInput) {
-            console.error('Username or room name input field not found.');
-            return;
+    function updateParticipants(participants) {
+        const participantsList = document.getElementById('participants');
+        if (participantsList) {
+            participantsList.innerHTML = '';
+            participants.forEach(participant => {
+                const participantItem = document.createElement('li');
+                participantItem.textContent = participant;
+                participantsList.appendChild(participantItem);
+            });
         }
+    }
 
-        const username = usernameInput.value.trim();
-        const roomName = roomNameInput.value.trim();
+    socket.on('createRoom', ({ username, roomName }) => {
+        if (!existingRoomNames.includes(roomName)) {
+            existingRoomNames.push(roomName);
+        }
+        updateParticipants(Object.keys(rooms[roomName].participants));
+        toggleRoomForm(false);
+        document.getElementById('roomTitle').textContent = `Room: ${roomName}`;
+    });
 
+    document.getElementById('createRoomButton').onclick = () => {
+        const username = document.getElementById('usernameInput').value.trim();
+        const roomName = document.getElementById('roomNameInput').value.trim();
         if (username && roomName) {
             socket.emit('createRoom', { username, roomName });
-        } else {
-            console.error('Username or room name is empty.');
         }
     };
 
-    // Function to update the list of participants
-    function updateParticipants(participants) {
-        const participantsList = document.getElementById('participants');
-        if (!participantsList) {
-            console.error('Participants list not found.');
-            return;
-        }
+    socket.on('receiveMessage', (data) => {
+        console.log('Message received:', data);
+        displayMessage(data.username, data.message);
+    });
 
-        participantsList.innerHTML = ''; // Clear existing participants
-
-        // Add each participant to the list
-        participants.forEach(participant => {
-            const participantItem = document.createElement('li');
-            participantItem.textContent = participant;
-            participantsList.appendChild(participantItem);
-        });
-    }
-
-    // Handle room name existence
     socket.on('roomNameExists', (data) => {
         showRoomNamePrompt(data.existingRoomName);
     });
 
-    // Handle room creation
     socket.on('roomCreated', (data) => {
-        existingRoomNames.push(data.roomName);
         updateParticipants(data.participants);
         toggleRoomForm(false);
         document.getElementById('roomTitle').textContent = `Room: ${data.roomName}`;
     });
 
-    // Handle room not found
     socket.on('roomNotFound', (roomName) => {
         alert(`Room "${roomName}" does not exist.`);
     });
 
-    // Handle room join
     socket.on('roomJoined', (data) => {
         updateParticipants(data.participants);
-        toggleRoomForm(false);
+        toggleRoomForm(false); // Hide the roomForm
+        document.getElementById('roomInfo').style.display = 'block'; // Show the roomInfo
         document.getElementById('roomTitle').textContent = `Room: ${data.roomName}`;
     });
+    
 
-    // Handle room left
+    socket.on('usernameTaken', (data) => {
+        alert(`Username "${data.username}" is already taken in this room.`);
+    });
+
     socket.on('roomLeft', (data) => {
-        updateParticipants(data.participants);
-        if (data.username === document.getElementById('usernameInput').value.trim()) {
+        const { participants, username } = data;
+        updateParticipants(participants);
+        document.getElementById('status').textContent = username === document.getElementById('usernameInput').value.trim() ?
+            'You left the room.' : `${username} left the room.`;
+        if (username === document.getElementById('usernameInput').value.trim()) {
             toggleRoomForm(true);
-            document.getElementById('status').textContent = `You left the room.`;
-        } else {
-            document.getElementById('status').textContent = `${data.username} left the room.`;
-        }
-
-        // Check if the room is now empty
-        if (data.participants.length === 0) {
-            toggleRoomForm(true); // Show room form if the room is empty
         }
     });
 
-    // Join a room
-    document.getElementById('joinRoomButton').onclick = () => {
-        const usernameInput = document.getElementById('usernameInput');
-        const roomNameInput = document.getElementById('roomNameInput');
+    socket.on('updateParticipants', (participants) => {
+        updateParticipants(participants);
+    });
 
-        if (!usernameInput || !roomNameInput) {
-            console.error('Username or room name input field not found.');
-            return;
-        }
-
-        const username = usernameInput.value.trim();
-        const roomName = roomNameInput.value.trim();
-
-        if (username && roomName) {
-            socket.emit('joinRoom', { username, roomName });
-        } else {
-            console.error('Username or room name is empty.');
-        }
-    };
-
-    // Leave room button functionality
     document.getElementById('leaveRoomButton').addEventListener('click', () => {
-        const usernameInput = document.getElementById('usernameInput');
-        const roomTitle = document.getElementById('roomTitle');
-
-        if (!usernameInput || !roomTitle) {
-            console.error('Username or room title element not found.');
-            return;
-        }
-
-        const username = usernameInput.value.trim();
-        const roomName = roomTitle.textContent.replace('Room: ', '').trim();
-
+        const username = document.getElementById('usernameInput').value.trim();
+        const roomName = document.getElementById('roomTitle').textContent.replace('Room: ', '').trim();
         if (username && roomName) {
             socket.emit('leaveRoom', { username, roomName });
-        } else {
-            console.error('Username or room name is empty.');
+            // Client-side immediate UI update
+            toggleRoomForm(true);
+            updateParticipants([]);
         }
     });
 
-    // Send message functionality
     document.getElementById('sendMessageButton').addEventListener('click', () => {
         const messageInput = document.getElementById('messageInput');
-        const usernameInput = document.getElementById('usernameInput');
-        const roomTitle = document.getElementById('roomTitle');
-
-        if (!messageInput || !usernameInput || !roomTitle) {
-            console.error('Message input, username, or room title element not found.');
-            return;
-        }
-
         const message = messageInput.value.trim();
-        const username = usernameInput.value.trim();
-        const roomName = roomTitle.textContent.replace('Room: ', '').trim();
+        const roomName = document.getElementById('roomTitle').textContent.replace('Room: ', '').trim();
+        const username = document.getElementById('usernameInput').value.trim();
 
-        if (message) {
+        if (message && roomName && username) {
             socket.emit('sendMessage', { roomName, username, message });
-            messageInput.value = ''; // Clear the input
+            messageInput.value = '';
+        }
+    });
+
+    document.getElementById('photoInput').addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        const username = document.getElementById('usernameInput').value.trim();
+        const roomName = document.getElementById('roomTitle').textContent.replace('Room: ', '').trim();
+
+        if (file && username && roomName) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const photoDataURL = reader.result;
+                socket.emit('sendPhoto', { roomName, username, photo: photoDataURL });
+            };
+            reader.readAsDataURL(file);
         } else {
-            console.error('Message input is empty.');
+            console.error('File, username, or room name is missing.');
         }
     });
 
-    // Listen for chat messages
-    socket.on('receiveMessage', (data) => {
-        const messages = document.getElementById('messages');
-        if (!messages) {
-            console.error('Messages element not found.');
-            return;
+    socket.on('receivePhoto', (data) => {
+        console.log('Photo received:', data);
+        displayMessage(data.username, data.imageUrl, true);
+    });
+
+    function checkElements() {
+        ['roomForm', 'roomInfo', 'roomNamePrompt', 'newRoomNameInput', 'confirmRoomName', 'cancelRoomName', 'messages', 'participants', 'usernameInput', 'roomNameInput', 'createRoomButton', 'joinRoomButton', 'leaveRoomButton', 'sendMessageButton', 'messageInput'].forEach(id => {
+            if (!document.getElementById(id)) {
+                console.error(`Element with id "${id}" not found.`);
+            }
+        });
+    }
+
+    document.getElementById('joinRoomButton').onclick = () => {
+        const username = document.getElementById('usernameInput').value.trim();
+        const roomName = document.getElementById('roomNameInput').value.trim();
+        if (username && roomName) {
+            socket.emit('joinRoom', { username, roomName });
         }
+    };
+    
 
-        const messageElement = document.createElement('div');
-        messageElement.textContent = `${data.username}: ${data.message}`;
-        messages.appendChild(messageElement);
-        messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
-    });
-
-    // Listen for suggested room name
-    socket.on('suggestRoomName', (suggestedRoomName) => {
-        showRoomNamePrompt(suggestedRoomName);
-    });
+    checkElements(); // Call function to check elements' existence
 });

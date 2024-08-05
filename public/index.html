@@ -9,31 +9,38 @@
 </head>
 
 <body>
-    <div id="roomForm">
-        <input type="text" id="usernameInput" placeholder="Enter your username">
-        <input type="text" id="roomNameInput" placeholder="Enter room name">
-        <button id="createRoomButton" onclick="createRoom()">Create Room</button>
-        <button id="joinRoomButton">Join Room</button>
-    </div>
-    <div id="roomInfo" style="display: none;">
-        <h2 id="roomTitle"></h2>
-        <button id="leaveRoomButton">Leave Room</button>
-        <div id="participants"></div>
-        <div id="chat">
-            <div id="messages"></div>
-            <input type="text" id="messageInput" placeholder="Type your message here">
-            <button id="sendMessageButton">Send</button>
+    <div class="container">
+        <div id="roomListContainer">
+            <h2>Available Rooms</h2>
+            <div id="roomList"></div>
+        </div>        
+        <div id="roomForm">
+            <input type="text" id="usernameInput" placeholder="Enter your username">
+            <input type="text" id="roomNameInput" placeholder="Enter room name">
+            <button id="createRoomButton" onclick="createRoom()">Create Room</button>
+            <button id="joinRoomButton">Join Room</button>
         </div>
-    </div>
-    <div id="status"></div>
-    <!-- Include this within your HTML body -->
-    <div id="roomNamePrompt" class="popup">
-        <div class="popup-content">
-            <span id="closePopup" class="close">&times;</span>
-            <p id="popupMessage"></p>
-            <input type="text" id="newRoomNameInput" placeholder="Suggested Room Name">
-            <button id="confirmRoomName">Create Room</button>
-            <button id="cancelRoomName">Cancel</button>
+        <div id="roomInfo" style="display: none;">
+            <h2 id="roomTitle"></h2>
+            <button id="leaveRoomButton">Leave Room</button>
+            <div id="participants"></div>
+            <div id="chat">
+                <div id="messages"></div>
+                <input id="messageInput" type="text" placeholder="Type your message">
+                <input id="photoInput" type="file">
+                <button id="sendMessageButton">Send</button>
+            </div>
+        </div>
+        <div id="status"></div>
+        <!-- Include this within your HTML body -->
+        <div id="roomNamePrompt" class="popup">
+            <div class="popup-content">
+                <span id="closePopup" class="close">&times;</span>
+                <p id="popupMessage"></p>
+                <input type="text" id="newRoomNameInput" placeholder="Suggested Room Name">
+                <button id="confirmRoomName">Create Room</button>
+                <button id="cancelRoomName">Cancel</button>
+            </div>
         </div>
     </div>
 

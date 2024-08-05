@@ -1,130 +1,134 @@
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
+const { Server } = require('socket.io');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const sharp = require('sharp');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = new Server(server);
 
-const rooms = new Map(); // Map to store room data
-const chatHistoryPath = path.join(__dirname, 'chatHistory.json');
+const port = process.env.PORT || 3000;
+const upload = multer({ dest: 'public/uploads/' });
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Load existing chat history
-let chatHistory = {};
-if (fs.existsSync(chatHistoryPath)) {
-    chatHistory = JSON.parse(fs.readFileSync(chatHistoryPath, 'utf8'));
-}
+const rooms = {};
 
-// Save chat history to file
-function saveChatHistory() {
-    fs.writeFileSync(chatHistoryPath, JSON.stringify(chatHistory, null, 2), 'utf8');
-}
+// Helper function to save chat history to a file
+const saveChatHistory = (roomName, username, message) => {
+    const chatHistoryPath = path.join(__dirname, 'chatHistory.json');
+    let chatHistory = {};
 
-// Function to generate a unique room name
-function generateUniqueRoomName(baseName) {
-    let index = 1;
-    let newName = baseName;
-    while (rooms.has(newName)) {
-        newName = `${baseName}_${index}`;
-        index++;
+    if (fs.existsSync(chatHistoryPath)) {
+        chatHistory = JSON.parse(fs.readFileSync(chatHistoryPath));
     }
-    return newName;
-}
+
+    if (!chatHistory[roomName]) {
+        chatHistory[roomName] = [];
+    }
+
+    chatHistory[roomName].push({ username, message, timestamp: new Date() });
+
+    fs.writeFileSync(chatHistoryPath, JSON.stringify(chatHistory, null, 2));
+};
 
 io.on('connection', (socket) => {
-    console.log('A user connected');
+    console.log('A user connected.');
 
-    socket.on('checkRoomName', (data, callback) => {
-        const { roomName } = data;
-        const exists = rooms.has(roomName);
-        if (typeof callback === 'function') {
-            callback({ exists });
-        }
-    });
-
-    socket.on('createRoom', (data) => {
-        const { username, roomName } = data;
-        let suggestedRoomName = roomName;
-
-        if (rooms.has(roomName)) {
-            suggestedRoomName = generateUniqueRoomName(roomName);
-            socket.emit('roomNameExists', { existingRoomName: roomName }); // Emit event with existing name
-        } else {
-            rooms.set(roomName, new Set());
-            const room = rooms.get(roomName);
-            room.add(username);
+    socket.on('createRoom', ({ username, roomName }) => {
+        if (!rooms[roomName]) {
+            rooms[roomName] = {
+                participants: {},
+                hosts: [username]
+            };
+            rooms[roomName].participants[username] = socket.id;
             socket.join(roomName);
-            io.to(roomName).emit('roomCreated', { roomName, participants: Array.from(room) });
-            console.log(`Room ${roomName} created by ${username}`);
+
+            socket.emit('roomCreated', {
+                roomName,
+                participants: Object.keys(rooms[roomName].participants)
+            });
+        } else {
+            socket.emit('roomNameExists', { existingRoomName: roomName });
         }
     });
 
-    socket.on('joinRoom', (data) => {
-        const { username, roomName } = data;
-        if (rooms.has(roomName)) {
-            const room = rooms.get(roomName);
-            if (room.has(username)) {
-                socket.emit('usernameTaken', roomName);
-            } else {
-                room.add(username);
+    socket.on('joinRoom', ({ username, roomName }) => {
+        if (rooms[roomName]) {
+            if (!rooms[roomName].participants[username]) {
+                rooms[roomName].participants[username] = socket.id;
                 socket.join(roomName);
-                io.to(roomName).emit('roomJoined', { roomName, participants: Array.from(room) });
-                console.log(`User ${username} joined room ${roomName}`);
+
+                io.to(roomName).emit('updateParticipants', Object.keys(rooms[roomName].participants));
+
+                socket.emit('roomJoined', {
+                    roomName,
+                    participants: Object.keys(rooms[roomName].participants)
+                });
+
+                io.to(roomName).emit('roomJoined', {
+                    roomName,
+                    participants: Object.keys(rooms[roomName].participants)
+                });
+            } else {
+                socket.emit('usernameTaken', { username });
             }
         } else {
             socket.emit('roomNotFound', roomName);
         }
     });
 
-    socket.on('leaveRoom', (data) => {
-        const { username, roomName } = data;
-        if (rooms.has(roomName)) {
-            const room = rooms.get(roomName);
-            room.delete(username);
+    socket.on('sendMessage', ({ roomName, username, message }) => {
+        if (rooms[roomName]) {
+            saveChatHistory(roomName, username, message);
 
-            // Notify all remaining participants
-            io.to(roomName).emit('roomLeft', {
-                username,
-                roomName,
-                participants: Array.from(room)
-            });
-
-            // Leave the room
-            socket.leave(roomName);
-
-            // Remove the room if it's empty
-            if (room.size === 0) {
-                rooms.delete(roomName);
-            }
-
-            console.log(`User ${username} left room ${roomName}`);
+            io.to(roomName).emit('receiveMessage', { username, message });
         }
     });
 
-    socket.on('sendMessage', (data) => {
-        const { roomName, username, message } = data;
-        const chatMessage = { username, message, timestamp: new Date().toISOString() };
+    socket.on('sendPhoto', ({ roomName, username, photo }) => {
+        const photoBuffer = Buffer.from(photo.split(',')[1], 'base64');
+        const photoPath = path.join(__dirname, 'public', 'uploads', `photo_${Date.now()}.png`);
 
-        // Save message to chat history
-        if (!chatHistory[roomName]) {
-            chatHistory[roomName] = [];
+        sharp(photoBuffer)
+            .resize({ width: 300 })
+            .toFile(photoPath, (err, info) => {
+                if (err) {
+                    console.error('Error processing image:', err);
+                    return;
+                }
+
+                const imageUrl = `/uploads/${path.basename(photoPath)}`;
+                io.to(roomName).emit('receivePhoto', { username, imageUrl });
+            });
+    });
+
+    socket.on('leaveRoom', ({ username, roomName }) => {
+        if (rooms[roomName]) {
+            delete rooms[roomName].participants[username];
+            socket.leave(roomName);
+
+            if (Object.keys(rooms[roomName].participants).length === 0) {
+                delete rooms[roomName];
+            } else {
+                io.to(roomName).emit('updateParticipants', Object.keys(rooms[roomName].participants));
+            }
+
+            io.to(roomName).emit('roomLeft', {
+                participants: Object.keys(rooms[roomName]?.participants || []),
+                username
+            });
         }
-        chatHistory[roomName].push(chatMessage);
-        saveChatHistory();
-
-        io.to(roomName).emit('receiveMessage', chatMessage);
-        console.log(`Message from ${username} in room ${roomName}: ${message}`);
     });
 
     socket.on('disconnect', () => {
-        console.log('A user disconnected');
+        console.log('A user disconnected.');
     });
 });
 
-const port = process.env.PORT || 3002;
 server.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server is running on port ${port}`);
 });
