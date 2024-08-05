@@ -8,22 +8,19 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-const rooms = new Map(); // Map to store room data
+const rooms = new Map();
 const chatHistoryPath = path.join(__dirname, 'chatHistory.json');
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Load existing chat history
 let chatHistory = {};
 if (fs.existsSync(chatHistoryPath)) {
     chatHistory = JSON.parse(fs.readFileSync(chatHistoryPath, 'utf8'));
 }
 
-// Save chat history to file
 function saveChatHistory() {
     fs.writeFileSync(chatHistoryPath, JSON.stringify(chatHistory, null, 2), 'utf8');
 }
 
-// Function to generate a unique room name
 function generateUniqueRoomName(baseName) {
     let index = 1;
     let newName = baseName;
@@ -51,7 +48,7 @@ io.on('connection', (socket) => {
 
         if (rooms.has(roomName)) {
             suggestedRoomName = generateUniqueRoomName(roomName);
-            socket.emit('suggestRoomName', suggestedRoomName); // Emit event with suggested name
+            socket.emit('suggestRoomName', suggestedRoomName);
         } else {
             rooms.set(roomName, new Set());
             const room = rooms.get(roomName);
@@ -85,17 +82,14 @@ io.on('connection', (socket) => {
             const room = rooms.get(roomName);
             room.delete(username);
 
-            // Notify all remaining participants
             io.to(roomName).emit('roomLeft', {
                 username,
                 roomName,
                 participants: Array.from(room)
             });
 
-            // Leave the room
             socket.leave(roomName);
 
-            // Remove the room if it's empty
             if (room.size === 0) {
                 rooms.delete(roomName);
             }
@@ -108,7 +102,6 @@ io.on('connection', (socket) => {
         const { roomName, username, message } = data;
         const chatMessage = { username, message, timestamp: new Date().toISOString() };
 
-        // Save message to chat history
         if (!chatHistory[roomName]) {
             chatHistory[roomName] = [];
         }
