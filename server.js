@@ -51,7 +51,7 @@ io.on('connection', (socket) => {
 
         if (rooms.has(roomName)) {
             suggestedRoomName = generateUniqueRoomName(roomName);
-            socket.emit('roomNameExists', { existingRoomName: roomName }); // Emit event with existing name
+            socket.emit('suggestRoomName', suggestedRoomName); // Emit event with suggested name
         } else {
             rooms.set(roomName, new Set());
             const room = rooms.get(roomName);
@@ -124,7 +124,7 @@ io.on('connection', (socket) => {
     });
 });
 
-const port = 3002;
+const port = process.env.PORT || 3000;
 server.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
