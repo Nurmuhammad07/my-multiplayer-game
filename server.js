@@ -12,6 +12,9 @@ const io = new Server(server);
 
 const port = process.env.PORT || 3000;
 const upload = multer({ dest: 'public/uploads/' });
+const cors = require('cors');
+app.use(cors()); // Add this to your server configuration
+
 
 app.use(express.static(path.join(__dirname, 'public')));
 
