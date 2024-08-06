@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = io(); // Initialize Socket.IO client
     const existingRoomNames = [];
 
-    function displayMessage(username, content, isPhoto = false, color = '#000000') {
+    function displayMessage(username, content, isPhoto = false) {
         const messages = document.getElementById('messages');
         const currentUser = document.getElementById('usernameInput').value.trim();
         if (messages) {
@@ -16,9 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (isPhoto) {
-                messageElement.innerHTML = `<strong style="color: ${color};">${username}:</strong> <img src="${content}" style="max-width: 100px;">`;
+                messageElement.innerHTML = `<strong>${username}:</strong> <img src="${content}" style="max-width: 100px;">`;
             } else {
-                messageElement.innerHTML = `<strong style="color: ${color};">${username}:</strong> ${content}`;
+                messageElement.innerHTML = `<strong>${username}:</strong> ${content}`;
             }
 
             messages.appendChild(messageElement);
@@ -27,30 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Messages element not found.');
         }
     }
-
-    document.getElementById('roomForm').addEventListener('submit', function (event) {
-        event.preventDefault();
-
-        const nicknameColor = document.getElementById('nicknameColor').value || '#808080'; // Default to gray if not chosen
-
-        // Assuming you have a function to get other form values
-        const nickname = getNickname();
-
-        socket.emit('joinRoom', {
-            nickname: nickname,
-            color: nicknameColor
-        });
-    });
-
-    socket.on('newUser', function (data) {
-        const { nickname, color } = data;
-
-        const participantList = document.getElementById('participantsList');
-        const listItem = document.createElement('li');
-        listItem.style.color = color; // Apply chosen color
-        listItem.textContent = nickname;
-        participantList.appendChild(listItem);
-    });
 
 
     function toggleRoomForm(show) {
@@ -100,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButton.onclick = () => {
                     const newRoomName = newRoomNameInput.value.trim();
                     if (newRoomName) {
-                        socket.emit('createRoom', { username: document.getElementById('usernameInput').value.trim(), roomName: newRoomName, color: nicknameColor });
+                        socket.emit('createRoom', { username: document.getElementById('usernameInput').value.trim(), roomName: newRoomName });
                         roomNamePrompt.style.display = 'none';
                     }
                 };
@@ -113,21 +89,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateParticipants(participants) {
-        const participantsDiv = document.getElementById('participants');
+        const participantsList = document.getElementById('participants');
         const currentUser = document.getElementById('usernameInput').value.trim();
-        if (participantsDiv) {
-            participantsDiv.innerHTML = ''; // Clear existing participants
+        if (participantsList) {
+            participantsList.innerHTML = '';
             participants.forEach(participant => {
-                const participantElement = document.createElement('div');
-                participantElement.textContent = participant.username;
-                participantElement.style.color = participant.color; // Apply color
-                if (participant.username === currentUser) {
-                    participantElement.innerHTML = `${participant.username}<span class="you-label">(you)</span>`;
+                const participantItem = document.createElement('li');
+                participantItem.textContent = participant;
+                if (participant === currentUser) {
+                    participantItem.innerHTML = `${participant}<span class="you-label">(you)</span>`;
                 }
-                participantsDiv.appendChild(participantElement);
+                participantsList.appendChild(participantItem);
             });
         }
     }
+
 
     document.addEventListener('DOMContentLoaded', () => {
         const socket = io(); // Initialize Socket.IO client
@@ -237,10 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('createRoomButton').onclick = () => {
         const username = document.getElementById('usernameInput').value.trim();
-        const color = document.getElementById('nicknameColor').value || '#808080'; // Default to gray if not chosen
         const roomName = document.getElementById('roomNameInput').value.trim();
         if (username && roomName) {
-            socket.emit('createRoom', { username, roomName, color });
+            socket.emit('createRoom', { username, roomName });
             console.log('Creating room:', roomName); // Debugging line
         } else {
             showAlert('Enter your nickname and room name'); // Show an alert if nickname or room name is missing
@@ -428,10 +403,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('joinRoomButton').onclick = () => {
         const username = document.getElementById('usernameInput').value.trim();
-        const color = document.getElementById('nicknameColor').value || '#808080'; // Default to gray if not chosen
         const roomName = document.getElementById('roomNameInput').value.trim();
         if (username && roomName) {
-            socket.emit('joinRoom', { username, roomName, color });
+            socket.emit('joinRoom', { username, roomName });
         }
     };
 

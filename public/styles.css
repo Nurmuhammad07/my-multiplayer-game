@@ -476,3 +476,57 @@ body {
 .photo-upload-button:hover {
     background-color: #0056b3; /* Darker shade on hover */
 }
+
+/* Room list container styling */
+#roomList {
+    margin: 20px;
+    padding: 0;
+    list-style-type: none;
+}
+
+/* Room item styling */
+.room-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.room-item:hover {
+    background-color: #e0e0e0;
+}
+
+/* Room name styling */
+.room-item span {
+    margin-right: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Participants count styling */
+.room-item span:nth-of-type(2) {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Join button styling */
+.room-item button {
+    padding: 5px 10px;
+    font-size: 14px;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.room-item button:hover {
+    background-color: #0056b3;
+}
