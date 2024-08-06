@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Function to update the available rooms list
         function updateRoomList(rooms) {
             const roomListContainer = document.getElementById('roomList');
-            
+
             if (roomListContainer) {
                 roomListContainer.innerHTML = ''; // Clear existing list
                 rooms.forEach(room => {
@@ -306,17 +306,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('leaveRoomButton').addEventListener('click', () => {
         const username = document.getElementById('usernameInput').value.trim();
         const roomName = document.getElementById('roomTitle').textContent.replace('Room: ', '').trim();
-    
+
         if (username && roomName) {
             // Emit leaveRoom event
             socket.emit('leaveRoom', { username, roomName });
-    
+
             // Wait for the server to acknowledge that the room has been left
             socket.once('roomLeftAcknowledged', () => {
                 // Refresh the page after successful leave
                 location.reload();
             });
-    
+
             // Optionally handle cases where the server does not respond
             setTimeout(() => {
                 console.error('No response from server, refreshing the page.');
@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Username or room name is missing.');
         }
     });
-    
+
 
     document.getElementById('sendMessageButton').addEventListener('click', () => {
         const messageInput = document.getElementById('messageInput');
@@ -346,11 +346,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const roomName = document.getElementById('roomTitle').textContent.replace('Room: ', '').trim();
 
         if (file && username && roomName) {
+            // Validate file type (e.g., image/png, image/jpeg)
+            const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            if (!validTypes.includes(file.type)) {
+                console.error('Invalid file type. Please upload an image.');
+                return;
+            }
+
+            // Validate file size (e.g., max 5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                console.error('File size exceeds the maximum limit of 5MB.');
+                return;
+            }
+
             const reader = new FileReader();
             reader.onloadend = () => {
                 const photoDataURL = reader.result;
-                socket.emit('sendPhoto', { roomName, username, photo: photoDataURL });
+                // Ensure that the photo data URL is valid
+                if (photoDataURL) {
+                    socket.emit('sendPhoto', { roomName, username, photo: photoDataURL });
+                } else {
+                    console.error('Failed to read file.');
+                }
             };
+            reader.onerror = () => {
+                console.error('Error reading file.');
+            };
+
             reader.readAsDataURL(file);
         } else {
             console.error('File, username, or room name is missing.');
