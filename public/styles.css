@@ -73,26 +73,29 @@ body {
 
 /* Chat Box Container */
 #chat {
-    margin-top: 20px;
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    width: 90%;
-    /* Adjust width as needed */
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 600px; /* Adjust based on your layout needs */
+    margin: 0 auto;
+    padding: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    background: #fff;
 }
 
-/* Messages Area */
 #messages {
+    overflow-y: auto;
+    margin-bottom: 10px;
     border: 1px solid #ddd;
     padding: 10px;
-    height: 200px;
-    /* Adjust height as needed */
-    overflow-y: auto;
-    background-color: #fafafa;
+    height: 300px; /* Adjust as needed */
     border-radius: 4px;
+}
+
+.input-row {
+    display: flex;
+    gap: 10px;
     margin-bottom: 10px;
 }
 
@@ -110,6 +113,7 @@ body {
 
 /* Message Input */
 #messageInput {
+    flex: 1;
     width: calc(100% - 90px);
     /* Adjust width as needed */
     padding: 10px;
@@ -118,20 +122,44 @@ body {
     margin-right: 5px;
 }
 
-/* Send Button */
+.photo-upload-container {
+    display: flex;
+    align-items: center;
+}
+
+.photo-upload-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #007bff; /* Background color for the button */
+    color: white;
+    border-radius: 4px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+}
+
+.photo-upload-button i {
+    font-size: 18px;
+    color: white;
+}
+
+#photoInput {
+    display: none;
+}
+
 #sendMessageButton {
-    width: 80px;
     padding: 10px;
     border: none;
     border-radius: 4px;
-    background-color: #28a745;
-    color: #ffffff;
+    background-color: #007bff;
+    color: white;
     cursor: pointer;
     font-size: 16px;
 }
 
 #sendMessageButton:hover {
-    background-color: #218838;
+    background-color: #0056b3;
 }
 
 /* Popup Styles */
@@ -412,4 +440,39 @@ body {
     top: 10px;
     right: 10px;
     cursor: pointer;
+}
+
+/* Style for participants list */
+#participants {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#participants li {
+    width: 50%;
+    padding: 5px 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Style for the "(you)" label */
+.you-label {
+    color: #007bff;
+    /* Change this color as needed */
+    margin-left: 5px;
+}
+
+/* Container for the file input */
+.photo-upload-container {
+    display: flex;
+    align-items: center;
+    margin: 10px;
+}
+
+.photo-upload-button:hover {
+    background-color: #0056b3; /* Darker shade on hover */
 }

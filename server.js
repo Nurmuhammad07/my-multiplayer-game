@@ -43,13 +43,13 @@ io.on('connection', (socket) => {
     socket.emit('availableRooms', Object.keys(rooms));
 
     // When a room is created
-    socket.on('createRoom', ({ username, roomName }) => {
+    socket.on('createRoom', ({ username, color, roomName }) => {
         if (!rooms[roomName]) {
             rooms[roomName] = {
                 participants: {},
                 hosts: [username]
             };
-            rooms[roomName].participants[username] = socket.id;
+            rooms[roomName].participants[username] = { id: socket.id, color }; // Store color
             socket.join(roomName);
 
             socket.emit('roomCreated', {
@@ -64,23 +64,19 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('joinRoom', ({ username, roomName }) => {
+    socket.on('joinRoom', ({ username, color, roomName }) => {
+        const normalizedUsername = username.trim().toLowerCase();
         if (rooms[roomName]) {
-            if (!rooms[roomName].participants[username]) {
-                rooms[roomName].participants[username] = socket.id;
+            if (!rooms[roomName].participants[normalizedUsername]) {
+                rooms[roomName].participants[normalizedUsername] = { id: socket.id, color }; // Store color
                 socket.join(roomName);
 
                 io.to(roomName).emit('updateParticipants', Object.keys(rooms[roomName].participants));
-
                 socket.emit('roomJoined', {
                     roomName,
                     participants: Object.keys(rooms[roomName].participants)
                 });
-
-                io.to(roomName).emit('roomJoined', {
-                    roomName,
-                    participants: Object.keys(rooms[roomName].participants)
-                });
+                socket.to(roomName).emit('newUser', { username: normalizedUsername, color }); // Broadcast new user
             } else {
                 socket.emit('usernameTaken', { username });
             }
@@ -117,8 +113,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('leaveRoom', ({ username, roomName }) => {
+        const normalizedUsername = username.trim().toLowerCase();
         if (rooms[roomName]) {
-            delete rooms[roomName].participants[username];
+            delete rooms[roomName].participants[normalizedUsername];
             socket.leave(roomName);
 
             if (Object.keys(rooms[roomName].participants).length === 0) {
@@ -127,20 +124,18 @@ io.on('connection', (socket) => {
                 io.to(roomName).emit('updateParticipants', Object.keys(rooms[roomName].participants));
             }
 
-            // Notify all clients of the updated room list
             io.emit('availableRooms', Object.keys(rooms));
-
-            // Emit acknowledgment to the specific user
             socket.emit('roomLeftAcknowledged');
         }
     });
+
 
     socket.on('disconnect', () => {
         // Handle user disconnection
         for (let roomName in rooms) {
             if (rooms[roomName] && rooms[roomName].participants) {
                 for (let participant in rooms[roomName].participants) {
-                    if (rooms[roomName].participants[participant] === socket.id) {
+                    if (rooms[roomName].participants[participant].id === socket.id) {
                         delete rooms[roomName].participants[participant];
                         if (Object.keys(rooms[roomName].participants).length === 0) {
                             delete rooms[roomName];

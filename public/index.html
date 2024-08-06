@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multiplayer Game</title>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -16,6 +18,8 @@
         </div>
         <div id="roomForm">
             <input type="text" id="usernameInput" placeholder="Enter your username">
+            <label for="nicknameColor">Choose a color for your nickname:</label>
+            <input type="color" id="nicknameColor" name="nicknameColor" value="#808080"> <!-- Default to gray -->
             <input type="text" id="roomNameInput" placeholder="Enter room name">
             <button id="createRoomButton" onclick="createRoom()">Create Room</button>
             <button id="joinRoomButton">Join Room</button>
@@ -23,11 +27,20 @@
         <div id="roomInfo" style="display: none;">
             <h2 id="roomTitle"></h2>
             <button id="leaveRoomButton">Leave Room</button>
-            <div id="participants"></div>
+            <h2>Participants</h2>
+            <div id="participants">
+            </div>
             <div id="chat">
                 <div id="messages"></div>
-                <input id="messageInput" type="text" placeholder="Type your message">
-                <input id="photoInput" type="file">
+                <div class="input-row">
+                    <input id="messageInput" type="text" placeholder="Type your message">
+                    <div class="photo-upload-container">
+                        <label for="photoInput" class="photo-upload-button">
+                            <i class="fas fa-image"></i>
+                        </label>
+                        <input id="photoInput" type="file" accept="image/*">
+                    </div>
+                </div>
                 <button id="sendMessageButton">Send</button>
             </div>
         </div>
