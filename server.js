@@ -37,7 +37,9 @@ const saveChatHistory = (roomName, username, message) => {
 
 io.on('connection', (socket) => {
     console.log('A user connected.');
+    socket.emit('availableRooms', Object.keys(rooms));
 
+    // When a room is created
     socket.on('createRoom', ({ username, roomName }) => {
         if (!rooms[roomName]) {
             rooms[roomName] = {
@@ -51,6 +53,9 @@ io.on('connection', (socket) => {
                 roomName,
                 participants: Object.keys(rooms[roomName].participants)
             });
+
+            // Notify all clients of the updated room list
+            io.emit('availableRooms', Object.keys(rooms));
         } else {
             socket.emit('roomNameExists', { existingRoomName: roomName });
         }
@@ -90,20 +95,22 @@ io.on('connection', (socket) => {
     });
 
     socket.on('sendPhoto', ({ roomName, username, photo }) => {
-        const photoBuffer = Buffer.from(photo.split(',')[1], 'base64');
-        const photoPath = path.join(__dirname, 'public', 'uploads', `photo_${Date.now()}.png`);
+        if (rooms[roomName]) {
+            const photoBuffer = Buffer.from(photo.split(',')[1], 'base64');
+            const photoPath = path.join(__dirname, 'public', 'uploads', `photo_${Date.now()}.png`);
 
-        sharp(photoBuffer)
-            .resize({ width: 300 })
-            .toFile(photoPath, (err, info) => {
-                if (err) {
-                    console.error('Error processing image:', err);
-                    return;
-                }
+            sharp(photoBuffer)
+                .resize({ width: 300 })
+                .toFile(photoPath, (err, info) => {
+                    if (err) {
+                        console.error('Error processing image:', err);
+                        return;
+                    }
 
-                const imageUrl = `/uploads/${path.basename(photoPath)}`;
-                io.to(roomName).emit('receivePhoto', { username, imageUrl });
-            });
+                    const imageUrl = `/uploads/${path.basename(photoPath)}`;
+                    io.to(roomName).emit('receivePhoto', { username, imageUrl });
+                });
+        }
     });
 
     socket.on('leaveRoom', ({ username, roomName }) => {
@@ -117,16 +124,36 @@ io.on('connection', (socket) => {
                 io.to(roomName).emit('updateParticipants', Object.keys(rooms[roomName].participants));
             }
 
-            io.to(roomName).emit('roomLeft', {
-                participants: Object.keys(rooms[roomName]?.participants || []),
-                username
-            });
+            // Notify all clients of the updated room list
+            io.emit('availableRooms', Object.keys(rooms));
+
+            // Emit acknowledgment to the specific user
+            socket.emit('roomLeftAcknowledged');
         }
     });
 
     socket.on('disconnect', () => {
-        console.log('A user disconnected.');
+        // Handle user disconnection
+        for (let roomName in rooms) {
+            if (rooms[roomName] && rooms[roomName].participants) {
+                for (let participant in rooms[roomName].participants) {
+                    if (rooms[roomName].participants[participant] === socket.id) {
+                        delete rooms[roomName].participants[participant];
+                        if (Object.keys(rooms[roomName].participants).length === 0) {
+                            delete rooms[roomName];
+                        } else {
+                            io.to(roomName).emit('updateParticipants', Object.keys(rooms[roomName].participants));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Notify all clients about the updated available rooms
+        io.emit('availableRooms', Object.keys(rooms));
     });
+
 });
 
 server.listen(port, () => {
